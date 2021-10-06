@@ -24,6 +24,8 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+from helper import * 
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -67,9 +69,37 @@ class HTTPClient(object):
                 done = not part
         return buffer.decode('utf-8')
 
-    def GET(self, url, args=None):
-        code = 500
+    def GET(self, url, args=None): # url = http://127.0.0.1:27685/49872398432
+        code = 500 # default 500 Generic Error 
         body = ""
+        args_str = ''
+
+        # consider handling arguments
+        if args:
+            args_str = urllib.urlencode(args)
+        
+        # format request 
+        # source: https://www.tutorialspoint.com/http/http_requests.htm
+        uri = create_uri(url) # Request-Line = Method (GET) Request-URI HTTP-Version (HTTP//1.1) CRLF (\r\n)
+        
+        print("host1",host_from_url(url))
+        # request = 'GET {0} HTTP/1.1\r\n'.format(geturl_from_url(url))
+        request = 'GET {0} HTTP/1.1\r\n'.format(uri)
+        request += 'Host: {0}\r\n'.format(host_from_url(url))
+        request += 'Accept: */*\r\n\r\n'
+        response = do_request(url, request)
+
+        print("request1",request)
+        print("response1",response)
+
+        # parse 
+        response_str = response.decode("utf-8")
+        headers = (response_str.split('\r\n\r\n')[0]).strip().split('\r\n')
+        body = response_str.split('\r\n\r\n')[1]
+
+        code_header = [header for header in headers if header[:8] == 'HTTP/1.1' or header[:8] == 'HTTP/1.0'][0]
+        code = int(code_header.split(' ')[1])
+        
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
@@ -83,6 +113,20 @@ class HTTPClient(object):
         else:
             return self.GET( url, args )
     
+def create_uri(url):
+    '''
+    url = http://127.0.0.1:27685/49872398432 --> uri = 49872398432
+    '''
+    url = url.replace("http://","") # uri = 49872398432
+    i = 0 
+    while i<len(url):
+        if url[i]=="/": # only return the requestURI
+            return url[i:]
+        i += 1 
+
+    # no / is found 
+    return "/"
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
