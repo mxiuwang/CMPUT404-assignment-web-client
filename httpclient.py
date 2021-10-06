@@ -80,12 +80,14 @@ class HTTPClient(object):
         
         # format request 
         # source: https://www.tutorialspoint.com/http/http_requests.htm
-        uri = create_uri(url) # Request-Line = Method (GET) Request-URI HTTP-Version (HTTP//1.1) CRLF (\r\n)
+        uri, host = create_uri(url) # Request-Line = Method (GET) Request-URI HTTP-Version (HTTP//1.1) CRLF (\r\n)
         
         print("host1",host_from_url(url))
+        print("host2",host)
         # request = 'GET {0} HTTP/1.1\r\n'.format(geturl_from_url(url))
         request = 'GET {0} HTTP/1.1\r\n'.format(uri)
-        request += 'Host: {0}\r\n'.format(host_from_url(url))
+        # request += 'Host: {0}\r\n'.format(host_from_url(url))
+        request += 'Host: {0}\r\n'.format(host)
         request += 'Accept: */*\r\n\r\n'
         response = do_request(url, request)
 
@@ -118,14 +120,23 @@ def create_uri(url):
     url = http://127.0.0.1:27685/49872398432 --> uri = 49872398432
     '''
     url = url.replace("http://","") # uri = 49872398432
+    uri = "/"
+    host = url 
     i = 0 
     while i<len(url):
         if url[i]=="/": # only return the requestURI
-            return url[i:]
+            uri = url[i:]
+            host = url[:i]
+            break
         i += 1 
+    
+    if "/" in host:
+        j = 0 
+        while j<len(host):
+            j += 1
+        host = uri[:j]
 
-    # no / is found 
-    return "/"
+    return uri, host 
 
 if __name__ == "__main__":
     client = HTTPClient()
