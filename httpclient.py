@@ -24,8 +24,6 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
-from helper import * 
-
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -110,8 +108,8 @@ class HTTPClient(object):
         arg_string = '' 
         if args:
             arg_string = urllib.parse.urlencode(args)
-        print("args1",args)
-        print("arg_string1",arg_string)
+        # print("args1",args)
+        # print("arg_string1",arg_string)
 
         uri, host = create_uri(url)
 
@@ -129,12 +127,12 @@ class HTTPClient(object):
 
         request += '\r\n'
 
-        print("request_POST1",request)
+        # print("request_POST1",request)
 
         if arg_string != '':
             request += arg_string + '\r\n'
             request += '\r\n'
-        print("request_argStr",request)
+        # print("request_argStr",request)
 
         response_str = do_request(url, request)
         statusCode, httpBody = parse(response_str)
@@ -178,6 +176,66 @@ def parse(response_str):
     httpBody = split_response[1].strip()
 
     return statusCode, httpBody
+
+def do_request(url, request):
+    
+    _, hosturl = create_uri(url)
+    print("hosturl:",hosturl)
+
+    # connect socket
+    local_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host = hosturl # default 
+    port = 80
+    if ":" in hosturl:
+        hosturl_split = hosturl.split(":")
+        host = hosturl_split[0]
+        port = int(hosturl_split[1])
+    local_socket.connect((host, port))
+    local_socket.sendall(str.encode(request, "utf-8"))
+
+    print("request_do", request)
+
+    buffer = bytearray()
+    done = False
+    while not done:
+        part = local_socket.recv(1024)
+        print("part1",part)
+        if (part):
+            buffer.extend(part)
+            if received_complete_response(buffer):
+                break
+        else:
+            done = not part
+    print("buffer2",buffer)
+
+    local_socket.close()
+
+    return buffer.decode("utf-8")
+
+def received_complete_response(buffer):
+    """
+    Fixes issue with sites returning 302 and keeping the conn open
+    (recvall given to us will wait forever for conn close?)
+    """
+    buffer = buffer.decode("utf-8")
+    print("buffer1",type(buffer),buffer)
+    headers = buffer.split('\r\n')
+    content_length = [h for h in headers if h[:15] == 'Content-Length:']
+    if content_length == []:
+        return False
+    content_length = int(content_length[0][15:])
+
+    if buffer.find('\r\n\r\n') == -1:
+        return False
+
+    split_buffer = buffer.split('\r\n\r\n')
+    if (len(split_buffer) == 1 or split_buffer[1] == '') and content_length == 0:
+        return True
+    if len(split_buffer[1]) >= content_length:
+        return True
+
+    return False
+
 
 if __name__ == "__main__":
     client = HTTPClient()
