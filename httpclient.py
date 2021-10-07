@@ -90,23 +90,11 @@ class HTTPClient(object):
         # request += 'Host: {0}\r\n'.format(host_from_url(url))
         request += 'Host: {0}\r\n'.format(host)
         request += 'Accept: */*\r\n\r\n'
+
         response_str = do_request(url, request)
-
-        # print("request1",request)
-        # print("response1",response)
-
-        # parse 
-        # response_str = response.decode("utf-8")
-        headers = (response_str.split('\r\n\r\n')[0]).strip().split('\r\n')
-        body = response_str.split('\r\n\r\n')[1]
-
-        code_header = [header for header in headers if header[:8] == 'HTTP/1.1' or header[:8] == 'HTTP/1.0'][0]
-        code = int(code_header.split(' ')[1])
-
-        print("code_get:",code)
-        print("body_get:",body)
+        statusCode, httpBody = parse(response_str)
         
-        return HTTPResponse(code, body)
+        return HTTPResponse(statusCode, httpBody)
 
     def POST(self, url, args=None): 
         '''
@@ -136,6 +124,8 @@ class HTTPClient(object):
         if arg_string != '':
             request += 'Content-Length: {0}'.format(len(arg_string)) + '\r\n'
             request += 'Content-Type : application/x-www-form-urlencoded' + '\r\n'
+        else:
+            request += 'Content-Length: {0}'.format(0) + '\r\n'
 
         request += '\r\n'
 
@@ -147,22 +137,9 @@ class HTTPClient(object):
         print("request_argStr",request)
 
         response_str = do_request(url, request)
-        # code, body = parse_response(response)
-        # parse 
-        # response_str = response.decode("utf-8")
-        print("response_post",type(response_str),response_str)
-        print("response_split",response_str.split('\r\n\r\n'))
-
-        headers = (response_str.split('\r\n\r\n')[0]).strip().split('\r\n')
-        body = response_str.split('\r\n\r\n')[1]
-
-        code_header = [header for header in headers if header[:8] == 'HTTP/1.1' or header[:8] == 'HTTP/1.0'][0]
-        code = int(code_header.split(' ')[1])
-
-        print("code1",code)
-        print("body1",body)
-
-        return HTTPResponse(code, body)
+        statusCode, httpBody = parse(response_str)
+        
+        return HTTPResponse(statusCode, httpBody)
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
@@ -192,6 +169,15 @@ def create_uri(url):
         host = uri[:j]
 
     return uri, host 
+
+def parse(response_str):
+    split_response = response_str.split('\r\n\r\n')
+    header_statusCode = split_response[0].strip().split("\r\n")[0]
+    statusCode = int(header_statusCode.split(" ")[1])
+
+    httpBody = split_response[1].strip()
+
+    return statusCode, httpBody
 
 if __name__ == "__main__":
     client = HTTPClient()
