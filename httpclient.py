@@ -76,37 +76,92 @@ class HTTPClient(object):
 
         # consider handling arguments
         if args:
-            args_str = urllib.urlencode(args)
+            args_str = urllib.parse.quote_plus(args)
         
         # format request 
         # source: https://www.tutorialspoint.com/http/http_requests.htm
         uri, host = create_uri(url) # Request-Line = Method (GET) Request-URI HTTP-Version (HTTP//1.1) CRLF (\r\n)
         
-        print("host1",host_from_url(url))
-        print("host2",host)
+        # print("host1",host_from_url(url))
+        # print("host2",host)
+
         # request = 'GET {0} HTTP/1.1\r\n'.format(geturl_from_url(url))
         request = 'GET {0} HTTP/1.1\r\n'.format(uri)
         # request += 'Host: {0}\r\n'.format(host_from_url(url))
         request += 'Host: {0}\r\n'.format(host)
         request += 'Accept: */*\r\n\r\n'
-        response = do_request(url, request)
+        response_str = do_request(url, request)
 
-        print("request1",request)
-        print("response1",response)
+        # print("request1",request)
+        # print("response1",response)
 
         # parse 
-        response_str = response.decode("utf-8")
+        # response_str = response.decode("utf-8")
         headers = (response_str.split('\r\n\r\n')[0]).strip().split('\r\n')
         body = response_str.split('\r\n\r\n')[1]
 
         code_header = [header for header in headers if header[:8] == 'HTTP/1.1' or header[:8] == 'HTTP/1.0'][0]
         code = int(code_header.split(' ')[1])
+
+        print("code_get:",code)
+        print("body_get:",body)
         
         return HTTPResponse(code, body)
 
-    def POST(self, url, args=None):
+    def POST(self, url, args=None): 
+        '''
+        args =  {'a':'aaaaaaaaaaaaa',
+                'b':'bbbbbbbbbbbbbbbbbbbbbb',
+                'c':'c',
+                'd':'012345\r67890\n2321321\n\r'}
+        '''
         code = 500
         body = ""
+
+        # arg_string = argstring_from_args(args)
+        arg_string = '' 
+        if args:
+            arg_string = urllib.parse.urlencode(args)
+        print("args1",args)
+        print("arg_string1",arg_string)
+
+        uri, host = create_uri(url)
+
+        # request = 'POST {0} HTTP/1.1\r\n'.format(geturl_from_url(url))
+        request = 'POST {0} HTTP/1.1\r\n'.format(uri)
+        # request += 'Host: {0}\r\n'.format(host_from_url(url))
+        request += 'Host: {0}\r\n'.format(host)
+        request += 'Accept: */*\r\n'
+
+        if arg_string != '':
+            request += 'Content-Length: {0}'.format(len(arg_string)) + '\r\n'
+            request += 'Content-Type : application/x-www-form-urlencoded' + '\r\n'
+
+        request += '\r\n'
+
+        print("request_POST1",request)
+
+        if arg_string != '':
+            request += arg_string + '\r\n'
+            request += '\r\n'
+        print("request_argStr",request)
+
+        response_str = do_request(url, request)
+        # code, body = parse_response(response)
+        # parse 
+        # response_str = response.decode("utf-8")
+        print("response_post",type(response_str),response_str)
+        print("response_split",response_str.split('\r\n\r\n'))
+
+        headers = (response_str.split('\r\n\r\n')[0]).strip().split('\r\n')
+        body = response_str.split('\r\n\r\n')[1]
+
+        code_header = [header for header in headers if header[:8] == 'HTTP/1.1' or header[:8] == 'HTTP/1.0'][0]
+        code = int(code_header.split(' ')[1])
+
+        print("code1",code)
+        print("body1",body)
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):

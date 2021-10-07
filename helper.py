@@ -1,4 +1,4 @@
-import urllib
+import urllib.parse
 import socket 
 
 # def geturl_from_url(url): # url = http://127.0.0.1:27685/49872398432
@@ -11,14 +11,14 @@ import socket
 #         return '/'
 #     return url[url.find('/'):]
 
-def host_from_url(url):
-    """
-    Returns host for Host header
-    """
-    url = url.replace('http://', '')
-    if url.find('/') != -1:
-        url = url[:url.find('/')]
-    return url
+# def host_from_url(url):
+#     """
+#     Returns host for Host header
+#     """
+#     url = url.replace('http://', '')
+#     if url.find('/') != -1:
+#         url = url[:url.find('/')]
+#     return url
 
 def do_request(url, request):
     """
@@ -37,10 +37,13 @@ def do_request(url, request):
         splitUrl = url.split(':')
         host, port = splitUrl[0], splitUrl[1]
         clientSocket.connect((host, int(port)))
-
+    print("request_do", request)
     # print(request + '\n')
     clientSocket.sendall(str.encode(request, "utf-8"))
 
+    # buffer = recvall(clientSocket)
+    # print("buffer1",buffer)
+    
     return recvall(clientSocket)
 
 def recvall(sock):
@@ -48,14 +51,16 @@ def recvall(sock):
     done = False
     while not done:
         part = sock.recv(1024)
+        print("part1",part)
         if (part):
             buffer.extend(part)
             if received_complete_response(buffer):
                 break
         else:
             done = not part
+    print("buffer2",buffer)
 
-    return buffer
+    return buffer.decode("utf-8")
 
 def received_complete_response(buffer):
     """
@@ -80,3 +85,14 @@ def received_complete_response(buffer):
         return True
 
     return False
+
+# def argstring_from_args(args):
+#     """
+#     args is a dict
+#     """
+#     if args is None:
+#         return ''
+#     else:
+#         # return urllib.urlencode(args)
+#         return urllib.parse.urlencode(args)
+        
