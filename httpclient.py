@@ -24,6 +24,8 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+BUFFER_SIZE = 1024
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -60,7 +62,7 @@ class HTTPClient(object):
         buffer = bytearray()
         done = False
         while not done:
-            part = sock.recv(1024)
+            part = sock.recv(BUFFER_SIZE)
             if (part):
                 buffer.extend(part)
             else:
@@ -68,13 +70,13 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None): # url = http://127.0.0.1:27685/49872398432
-        code = 500 # default 500 Generic Error 
-        body = ""
-        args_str = ''
+        # code = 500 # default 500 Generic Error 
+        # body = ""
+        # args_str = ''
 
-        # consider handling arguments
-        if args:
-            args_str = urllib.parse.quote_plus(args)
+        # # consider handling arguments
+        # if args:
+        #     args_str = urllib.parse.quote_plus(args)
         
         # format request 
         # source: https://www.tutorialspoint.com/http/http_requests.htm
@@ -135,6 +137,7 @@ class HTTPClient(object):
         # print("request_argStr",request)
 
         response_str = do_request(url, request)
+        print("response_str1",type(response_str),response_str)
         statusCode, httpBody = parse(response_str)
         
         return HTTPResponse(statusCode, httpBody)
@@ -169,7 +172,9 @@ def create_uri(url):
     return uri, host 
 
 def parse(response_str):
+    print("response_str2",type(response_str),response_str)
     split_response = response_str.split('\r\n\r\n')
+    print("split_response",type(split_response),split_response)
     header_statusCode = split_response[0].strip().split("\r\n")[0]
     statusCode = int(header_statusCode.split(" ")[1])
 
@@ -193,45 +198,57 @@ def do_request(url, request):
     local_socket.connect((host, port))
     local_socket.sendall(str.encode(request, "utf-8"))
 
-    print("request_do", request)
-
-    buffer = bytearray()
-    done = False
-    while not done:
-        part = local_socket.recv(1024)
-        print("part1",part)
-        if (part):
-            buffer.extend(part)
-            if received_complete_response(buffer):
+    # receive repsonse  
+    full_data = b""
+    while True: # continueous recieve data until server stops sending 
+        try:
+            data = local_socket.recv(BUFFER_SIZE)
+        except Exception:
+            raise
+        
+        # if no more data, break 
+        if data.decode("utf-8")=="":
+            break 
+        else: # if there is data
+            full_data += data
+            # ensures complete response
+            complete = validate_response_completion(full_data)
+            if complete: # returns True if response is valid, False otherwise
                 break
-        else:
-            done = not part
-    print("buffer2",buffer)
+    print("fulldata",full_data)
 
     local_socket.close()
 
-    return buffer.decode("utf-8")
+    return full_data.decode("utf-8")
 
-def received_complete_response(buffer):
-    """
-    Fixes issue with sites returning 302 and keeping the conn open
-    (recvall given to us will wait forever for conn close?)
-    """
-    buffer = buffer.decode("utf-8")
-    print("buffer1",type(buffer),buffer)
-    headers = buffer.split('\r\n')
-    content_length = [h for h in headers if h[:15] == 'Content-Length:']
-    if content_length == []:
-        return False
-    content_length = int(content_length[0][15:])
+def validate_response_completion(data):
 
-    if buffer.find('\r\n\r\n') == -1:
-        return False
+    data = data.decode("utf-8")
+    print("buffer1",type(data),data)
 
-    split_buffer = buffer.split('\r\n\r\n')
-    if (len(split_buffer) == 1 or split_buffer[1] == '') and content_length == 0:
-        return True
-    if len(split_buffer[1]) >= content_length:
+    # no "\r\n\r\n" in data, response incomplete
+    sections_list = data.split("\r\n\r\n")
+    print("sections_list",type(sections_list),sections_list)
+    print("sections_list[1]",type(sections_list),sections_list[1])
+    if len(sections_list)==1:
+        return False 
+
+    headers_list = sections_list[0].split("\r\n")
+    print("headers1",type(headers_list),headers_list)
+
+    # check content length 
+    content_length = 0 
+    for header in headers_list:
+        if "Content-Length" in header:
+            print("header1",type(header),header)
+            content_length = int(header.split(" ")[1])
+    if content_length == 0:
+        return False 
+    print("content_length",type(content_length),content_length)
+
+    # response has finished 
+    if "\r\n\r\n" in data:
+        print("sections_list_len",len(sections_list[1]))
         return True
 
     return False
